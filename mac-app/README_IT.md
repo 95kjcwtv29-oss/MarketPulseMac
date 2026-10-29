@@ -22,15 +22,22 @@ Se macOS blocca anche i file `.command`, fai clic destro su `Avvia-MarketPulse.c
 
 ## Cosa include
 
-- **Oro:** future COMEX `GC=F` (USD/oncia troy), non oro spot fisico.
-- **Petrolio WTI e Brent:** future `CL=F` e `BZ=F` (USD/barile).
-- **USD/JPY:** cambio indicativo da Yahoo Finance.
+- **Quotazioni principali:** widget pubblici Plus500 per Oro (XAU), Petrolio (CL), Brent Oil (EB) e USD/JPY. Sono widget pubblici e possono mostrare prezzi ritardati.
+- **Riferimenti di monitoraggio agente:** prezzi pubblici Yahoo Finance per futures oro `GC=F`, WTI `CL=F`, Brent `BZ=F` e USD/JPY. Non sono i prezzi del conto CFD Plus500.
 - **Notizie internazionali:** feed RSS di Google News per oro, petrolio, USD/JPY e quadro macro. I titoli e i sommari più recenti vengono tradotti automaticamente in italiano tramite un endpoint web pubblico di Google Translate, senza chiave API. Il titolo originale resta visibile sotto a quello tradotto. Essendo un servizio pubblico non ufficiale, può essere temporaneamente indisponibile; in tal caso l'app mostra il testo originale.
 - **Polymarket:** ricerca di mercati attivi tramite l'API pubblica Gamma. I match diretti sono separati da quelli macro indiretti, come decisioni Fed/BoJ.
 - **Commenti e discussioni pubbliche:** ricerca RSS su Reddit e tentativo di recupero dei commenti con più voti nelle discussioni pertinenti; se Reddit limita le richieste, la dashboard mostra i thread come ripiego. I risultati dipendono dalle limitazioni del feed.
 - **Investing.com:** pulsanti per aprire direttamente le pagine dei commenti di oro, petrolio e USD/JPY. Il sito non offre una API pubblica ufficiale, perciò questa prima versione non copia automaticamente i suoi commenti.
 - **Sintesi automatica:** briefing euristico basato sui dati effettivamente ricevuti. Le etichette di sentiment sono semplici analisi lessicali, non un modello finanziario validato.
 - **Sintesi AI facoltativa:** si può inserire una chiave API OpenAI nella dashboard per produrre un briefing più articolato. La richiesta usa `gpt-6-luna`; la chiave non è salvata dal programma. L'uso dell'API può comportare addebiti sul tuo account OpenAI API. Non è necessaria per il funzionamento base.
+
+## Agente locale per posizioni e notifiche macOS
+
+La sezione **Agente locale · Posizioni e avvisi** registra sul Mac le posizioni che inserisci manualmente, senza chiedere password Plus500 o cookie di sessione. Puoi configurare una soglia di movimento contrario per ciascuna posizione, impostare una soglia globale di variazione di mercato e ricevere notifiche native macOS per movimenti oltre soglia e per nuove notizie ad alto impatto pertinenti alle posizioni registrate.
+
+Le posizioni sono salvate esclusivamente in `~/Library/Application Support/MarketPulse/agent_store.json` con permessi locali limitati, non vengono inviate a GitHub e non vengono trasmesse a servizi AI. La funzione è di sola lettura: non apre, modifica o chiude operazioni.
+
+**Limite essenziale per il conto CFD retail Plus500:** l'agente non legge automaticamente il conto e quindi non sa quando apri/chiudi una posizione a meno che tu non aggiorni il registro. Il prezzo iniziale di monitoraggio viene acquisito dal riferimento pubblico disponibile al momento della registrazione; gli allarmi misurano il movimento successivo di tale riferimento, non il profitto/perdita reale del conto. Il feed esterno può divergere dal Bid/Ask Plus500 per spread, quotazioni CFD e ritardi. Le notifiche locali vengono controllate ogni 5 minuti mentre il Mac è acceso, il server MarketPulse è in esecuzione e la sessione utente è attiva; sospensione del Mac, interruzione di rete o arresto del server interrompono il monitoraggio. Per la sorveglianza in tempo reale del prezzo effettivo, configura anche gli alert ufficiali di Plus500: https://www.plus500.com/it/help/alerts.
 
 ## Fonti e limiti importanti
 
