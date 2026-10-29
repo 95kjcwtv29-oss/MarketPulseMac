@@ -38,6 +38,23 @@ L'app richiede Python 3 e non installa pacchetti Python esterni. Se Python 3 non
 - **Investing.com:** collegamenti alle pagine originali dei commenti. Non viene effettuato scraping automatico dei contenuti protetti o soggetti a login.
 - **Briefing AI facoltativo:** richiede una chiave API OpenAI e può comportare costi. La chiave viene inviata per la richiesta corrente, non è salvata dall'app.
 
+## Agente locale per posizioni e notifiche macOS
+
+La versione locale include un agente di sorveglianza in sola lettura: registri manualmente le posizioni aperte, imposti una soglia di movimento contrario per ogni posizione e una soglia globale per i movimenti dei riferimenti di mercato. L'agente può inviare notifiche macOS per movimenti oltre soglia e nuove notizie ad alto impatto pertinenti alle posizioni registrate. Offre anche una checklist contestuale di rischio, non segnali automatici di acquisto/vendita.
+
+- Le posizioni sono salvate solo in `~/Library/Application Support/MarketPulse/agent_store.json`, con permessi locali limitati.
+- Non chiede, legge o memorizza password, cookie o codici Plus500 e non invia ordini.
+- Il conto Plus500 CFD retail non viene sincronizzato automaticamente: le posizioni vanno registrate e aggiornate manualmente.
+- Il monitor usa quotazioni pubbliche di riferimento Yahoo Finance, non il Bid/Ask effettivo del conto Plus500. Gli avvisi sono indicativi e la scansione locale avviene ogni 5 minuti quando il Mac è sveglio e il server è in esecuzione.
+- Per prezzi effettivi e alert broker in tempo reale, mantieni anche gli alert ufficiali Plus500: https://www.plus500.com/it/help/alerts.
+- La documentazione pubblica di Plus500 che ho verificato descrive API .NET/FIX per la piattaforma T4 Futures, distinta dal conto CFD retail standard: https://pft.plus500.com/api.
+
+Per aggiornare la copia installata, esegui in Terminale:
+
+```bash
+/usr/bin/curl -fLsS --retry 2 "https://raw.githubusercontent.com/95kjcwtv29-oss/MarketPulseMac/main/mac-app/aggiorna-macos.sh" -o "$HOME/Downloads/aggiorna-marketpulse.sh" && /bin/bash "$HOME/Downloads/aggiorna-marketpulse.sh"
+```
+
 ## Fonti e limiti
 
 - Yahoo Finance per quotazioni pubbliche potenzialmente ritardate.
