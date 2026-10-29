@@ -18,6 +18,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Validate macOS shell scripts
+        run: bash -n mac-app/aggiorna-macos.sh mac-app/install-macos.sh mac-app/Avvia-MarketPulse.command mac-app/Ferma-MarketPulse.command
       - name: Validate Python backend syntax
         run: python -m py_compile mac-app/marketpulse.py
       - name: Test local agent logic
