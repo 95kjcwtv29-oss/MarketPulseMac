@@ -1,0 +1,36 @@
+name: Validate MarketPulse local agent
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate Python backend syntax
+        run: python -m py_compile mac-app/marketpulse.py
+      - name: Extract dashboard JavaScript
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          source = Path("mac-app/index.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script>(.*?)</script>", source, flags=re.S)
+          if not scripts:
+              raise SystemExit("No inline dashboard script found")
+          Path("/tmp/marketpulse-inline.js").write_text("\n".join(scripts), encoding="utf-8")
+          print("Extracted", len(scripts), "script block(s)")
+          PY
+      - name: Validate dashboard JavaScript syntax
+        run: node --check /tmp/marketpulse-inline.js
