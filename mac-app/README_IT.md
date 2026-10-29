@@ -34,7 +34,8 @@ Se macOS blocca anche i file `.command`, fai clic destro su `Avvia-MarketPulse.c
 
 ## Fonti e limiti importanti
 
-- **Prezzi:** Yahoo Finance (`query1.finance.yahoo.com`), con possibili ritardi e indisponibilità. Le variazioni confrontano il prezzo restituito con la chiusura precedente disponibile.
+- **Quotazioni mostrate per prime:** widget pubblici ufficiali Plus500; la pagina del widget indica che i dati pubblici sono ritardati e che i prezzi sono CFD offerti da Plus500, non prezzi spot puri.
+- **Riferimenti sottostanti:** Yahoo Finance (`query1.finance.yahoo.com`), con possibili ritardi e indisponibilità. Sono visualizzati solo per confronto, non come quotazioni Plus500.
 - **Traduzione notizie:** endpoint web pubblico di Google Translate, senza chiave API e senza garanzia di disponibilità. Il testo originale viene conservato.
 - **Notizie:** Google News RSS; il titolo e il link conducono all'editore, quando disponibile.
 - **Mercati predittivi:** Gamma API di Polymarket (`gamma-api.polymarket.com`). Le probabilità riflettono prezzi di mercato e non probabilità oggettive certe. L'assenza di un match viene mostrata esplicitamente.
