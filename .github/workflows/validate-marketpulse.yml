@@ -20,6 +20,8 @@ jobs:
           node-version: "22"
       - name: Validate Python backend syntax
         run: python -m py_compile mac-app/marketpulse.py
+      - name: Test local agent logic
+        run: python -m unittest discover -s tests -v
       - name: Extract dashboard JavaScript
         run: |
           python - <<'PY'
