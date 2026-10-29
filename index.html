@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MarketPulse — Financial Intelligence</title>
+<style>
+:root{--bg:#0d1117;--panel:#151c25;--border:#273341;--text:#edf3f7;--muted:#92a3b5;--green:#b7f36b;--red:#ff7b72;--blue:#83c8ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top left,#1c2a2a 0,#0d1117 45%);color:var(--text);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}.wrap{max-width:1240px;margin:auto;padding:28px 22px 60px}.top{display:flex;justify-content:space-between;gap:18px;align-items:center;flex-wrap:wrap}.brand{display:flex;align-items:center;gap:13px}.logo{width:48px;height:48px;background:var(--green);color:#10200f;border-radius:14px;display:grid;place-items:center;font-size:25px;font-weight:900}.eyebrow{color:var(--green);text-transform:uppercase;letter-spacing:.15em;font-size:11px;font-weight:700}.title{font-size:27px;line-height:1.2;font-weight:750}.sub{color:var(--muted);margin-top:5px}.actions{display:flex;gap:9px;flex-wrap:wrap}button,.btn{border:1px solid var(--border);border-radius:10px;background:#1d2834;color:var(--text);padding:10px 14px;cursor:pointer;font:inherit}button.primary{background:var(--green);color:#14200e;border-color:var(--green);font-weight:700}.stamp{color:var(--muted);font-size:12px;margin:18px 0}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}.card{background:linear-gradient(145deg,rgba(26,36,48,.97),rgba(17,24,33,.97));border:1px solid var(--border);border-radius:16px;padding:18px;min-width:0}.label{color:var(--muted);font-size:13px}.price{font-size:27px;font-weight:750;letter-spacing:-.03em;margin:6px 0}.change{font-size:13px;color:var(--muted)}.section{margin-top:26px}.sectionhead{display:flex;align-items:end;justify-content:space-between;gap:12px;margin:0 0 12px}.sectionhead h2{font-size:19px;margin:0}.sectionhead p{margin:4px 0 0;color:var(--muted);font-size:13px}.two{display:grid;grid-template-columns:1.1fr .9fr;gap:14px}.chips{display:flex;gap:7px;flex-wrap:wrap;margin:14px 0}.chip{font-size:12px;border:1px solid var(--border);border-radius:30px;padding:6px 10px;color:var(--muted)}.item{padding:13px 0;border-top:1px solid var(--border)}.item:first-child{border-top:0}.item strong{display:block;line-height:1.4;margin-bottom:4px}.item small{color:var(--muted)}.item p{color:#c5d0da;font-size:13px;margin:6px 0}.sources{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.source{padding:14px;border:1px solid var(--border);border-radius:12px;background:#121923}.source h3{font-size:14px;margin:0 0 8px}.source p{font-size:13px;color:var(--muted);margin:0 0 10px}.notice{color:var(--muted);font-size:12px;max-width:850px}.status{font-size:12px;color:var(--muted)}.status.ok{color:var(--green)}.pill{display:inline-block;border:1px solid var(--border);border-radius:30px;padding:4px 9px;color:var(--muted);font-size:12px}.footer{margin-top:30px;padding-top:18px;border-top:1px solid var(--border);color:var(--muted);font-size:12px}@media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.two{grid-template-columns:1fr}.sources{grid-template-columns:1fr}}@media(max-width:480px){.grid{grid-template-columns:1fr}.wrap{padding:18px 13px}.title{font-size:22px}}
+</style></head>
+<body><main class="wrap">
+<header class="top"><div class="brand"><div class="logo">M</div><div><div class="eyebrow">Market intelligence</div><div class="title">MarketPulse</div><div class="sub">Oro · Petrolio · USD/JPY · Prediction markets</div></div></div><div class="actions"><button id="refresh" class="primary">↻ Aggiorna dati</button><a class="btn" href="https://github.com/95kjcwtv29-oss/MarketPulseMac" target="_blank" rel="noopener">Codice sorgente ↗</a></div></header>
+<div class="stamp"><span class="pill">Dashboard live</span> <span id="updated">Caricamento fonti pubbliche…</span></div>
+<section class="grid" id="quotes">
+<div class="card"><div class="label">Oro · Gold futures (GC=F)</div><div class="price">—</div><div class="change">In attesa della quotazione</div></div>
+<div class="card"><div class="label">Petrolio WTI (CL=F)</div><div class="price">—</div><div class="change">In attesa della quotazione</div></div>
+<div class="card"><div class="label">Petrolio Brent (BZ=F)</div><div class="price">—</div><div class="change">In attesa della quotazione</div></div>
+<div class="card"><div class="label">USD/JPY</div><div class="price">—</div><div class="change">In attesa della quotazione</div></div>
+</section>
+<section class="section"><div class="sectionhead"><div><h2>Briefing del mercato</h2><p>Sintesi dei dati e dei titoli trovati. Non è una previsione né un consiglio finanziario.</p></div><span id="summary-status" class="status">In aggiornamento</span></div><div class="card" id="briefing">Sto interrogando le fonti pubbliche. I contenuti disponibili dipendono dalla raggiungibilità delle API dal browser.</div></section>
+<section class="section two">
+<div class="card"><div class="sectionhead"><div><h2>Notizie globali</h2><p>Feed RSS e notizie finanziarie su materie prime, banche centrali e valute.</p></div></div><div class="chips"><span class="chip">Oro</span><span class="chip">Energia</span><span class="chip">Fed / BoJ</span><span class="chip">Geopolitica</span></div><div id="news"><div class="item">Caricamento feed notizie…</div></div></div>
+<div class="card"><div class="sectionhead"><div><h2>Polymarket</h2><p>Mercati previsionali e probabilità implicite</p></div><a href="https://polymarket.com" target="_blank" rel="noopener">Apri ↗</a></div><div id="poly"><div class="item">Ricerca mercati attivi…</div></div><p class="notice">Probabilità di mercato ≠ probabilità oggettiva. Volumi e liquidità cambiano; verifica sempre la pagina originale.</p></div>
+</section>
+<section class="section"><div class="sectionhead"><div><h2>Sentiment e discussioni degli operatori</h2><p>Link rapidi a discussioni pubbliche; i contenuti completi possono richiedere accesso al sito.</p></div></div><div class="sources">
+<div class="source"><h3>Investing.com · Oro</h3><p>Commenti di mercato, analisi tecnica e opinioni degli utenti.</p><a href="https://www.investing.com/commodities/gold" target="_blank" rel="noopener">Apri pagina oro ↗</a></div>
+<div class="source"><h3>Investing.com · Petrolio</h3><p>WTI, Brent e discussioni legate alle materie prime energetiche.</p><a href="https://www.investing.com/commodities/crude-oil" target="_blank" rel="noopener">Apri pagina petrolio ↗</a></div>
+<div class="source"><h3>Investing.com · USD/JPY</h3><p>Mercato valutario, indicatori tecnici e commenti degli operatori.</p><a href="https://www.investing.com/currencies/usd-jpy" target="_blank" rel="noopener">Apri cambio USD/JPY ↗</a></div>
+<div class="source"><h3>Reddit · r/Forex</h3><p>Discussioni e prospettive di trader sul mercato valutario.</p><a href="https://www.reddit.com/r/Forex/search/?q=USDJPY&restrict_sr=1&sort=top&t=week" target="_blank" rel="noopener">Cerca USD/JPY ↗</a></div>
+<div class="source"><h3>Reddit · r/commodities</h3><p>Opinioni e notizie su energia, metalli e materie prime.</p><a href="https://www.reddit.com/r/Commodities/search/?q=gold%20oil&restrict_sr=1&sort=top&t=week" target="_blank" rel="noopener">Cerca oro e petrolio ↗</a></div>
+<div class="source"><h3>Calendario macro</h3><p>Eventi che possono muovere oro, greggio e yen: tassi, inflazione e dati economici.</p><a href="https://www.forexfactory.com/calendar" target="_blank" rel="noopener">Apri calendario ↗</a></div>
+</div></section>
+<section class="section"><div class="card"><h2 style="margin-top:0;font-size:18px">Come leggere il quadro incrociato</h2><div class="item"><strong>Oro ↔ rendimenti reali e dollaro</strong><p>Un dollaro più forte o rendimenti reali crescenti possono pesare sull'oro; la domanda di bene rifugio può cambiare questa relazione.</p></div><div class="item"><strong>Petrolio ↔ offerta, domanda e rischio geopolitico</strong><p>Confronta titoli su OPEC+, scorte EIA, rotte marittime e prospettive di crescita con i movimenti dei futures.</p></div><div class="item"><strong>USD/JPY ↔ differenziale dei tassi e interventi</strong><p>Segui Fed e Bank of Japan, rendimenti USA/Giappone e comunicazioni su eventuali interventi valutari.</p></div><div class="item"><strong>Polymarket ↔ prezzo di mercato</strong><p>Collega una probabilità solo all'evento e all'orizzonte temporale che descrive realmente. Non trattare un mercato su una decisione Fed come una previsione diretta del prezzo dell'oro.</p></div></div></section>
+<div class="footer">MarketPulse è uno strumento informativo. I dati pubblici possono essere ritardati, incompleti o non disponibili. Il browser non riceve necessariamente accesso a tutte le API a causa di limiti CORS o di servizio. Non usare questa pagina come unica base per decisioni d'investimento.</div>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const fmt=(v,d=2)=>Number.isFinite(v)?v.toLocaleString('it-IT',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
+async function json(url){const r=await fetch(url,{headers:{Accept:'application/json'}});if(!r.ok)throw Error('HTTP '+r.status);return r.json()}
+async function loadQuotes(){
+ const symbols=[['Oro · Gold futures','GC=F'],['Petrolio WTI','CL=F'],['Petrolio Brent','BZ=F'],['USD/JPY','USDJPY=X']];
+ const boxes=[...$('#quotes').children];
+ const outcomes=await Promise.allSettled(symbols.map(async([label,sym])=>{
+  const data=await json('https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(sym)+'?range=5d&interval=1d');
+  const x=data.chart?.result?.[0]; if(!x)throw Error('Nessuna quotazione');
+  const meta=x.meta||{}, closes=(x.indicators?.quote?.[0]?.close||[]).filter(Number.isFinite);
+  const price=Number(meta.regularMarketPrice??closes.at(-1));
+  const prev=Number(meta.chartPreviousClose??meta.previousClose??closes.at(-2));
+  return {label,sym,price,change:prev?(price/prev-1)*100:null,currency:meta.currency|| (sym==='USDJPY=X'?'JPY':'USD')};
+ }));
+ outcomes.forEach((out,i)=>{const b=boxes[i];if(out.status==='fulfilled'){const x=out.value;b.innerHTML='<div class="label">'+x.label+' ('+x.sym+')</div><div class="price">'+fmt(x.price,x.sym==='USDJPY=X'?3:2)+' <span style="font-size:12px;color:var(--muted);font-weight:500">'+x.currency+'</span></div><div class="change" style="color:'+(x.change>=0?'var(--green)':'var(--red)')+'">'+(x.change===null?'Variazione n.d.':(x.change>=0?'+':'')+fmt(x.change,2)+'% rispetto al riferimento disponibile')+'</div>'}else{b.innerHTML='<div class="label">'+symbols[i][0]+'</div><div class="price">N/D</div><div class="change">Fonte non raggiungibile dal browser. Apri la fonte esterna.</div>'}});
+ return outcomes.filter(x=>x.status==='fulfilled').length;
+}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function loadNews(){
+ const feeds=[
+ 'https://feeds.reuters.com/reuters/businessNews',
+ 'https://feeds.bbci.co.uk/news/business/rss.xml',
+ 'https://www.cnbc.com/id/10000664/device/rss/rss.html'
+ ];
+ const proxy=u=>'https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(u);
+ const out=await Promise.allSettled(feeds.map(async u=>{const d=await json(proxy(u));if(!d.items)throw Error('feed non disponibile');return d.items.map(n=>({...n,source:d.feed?.title||new URL(u).hostname}))}));
+ const items=out.filter(x=>x.status==='fulfilled').flatMap(x=>x.value).filter(x=>/gold|oil|crude|petrol|yen|dollar|fed |federal reserve|boj|bank of japan|opec|inflation|interest rate|treasur|geopolit|energy/i.test((x.title||'')+' '+(x.description||''))).sort((a,b)=>new Date(b.pubDate)-new Date(a.pubDate)).slice(0,10);
+ if(!items.length){$('#news').innerHTML='<div class="item">Non è stato possibile recuperare i feed RSS dal browser. Usa le fonti dirette: <a href="https://www.reuters.com/markets/" target="_blank" rel="noopener">Reuters Markets</a>, <a href="https://www.cnbc.com/markets/" target="_blank" rel="noopener">CNBC Markets</a>, <a href="https://www.bbc.com/news/business" target="_blank" rel="noopener">BBC Business</a>.</div>';return []}
+ $('#news').innerHTML=items.map(n=>'<div class="item"><strong><a href="'+esc(n.link)+'" target="_blank" rel="noopener">'+esc(n.title)+'</a></strong><small>'+esc(n.source)+' · '+esc(n.pubDate||'Data n.d.')+'</small><p>'+esc((n.description||'').replace(/<[^>]*>/g,' ').slice(0,210))+'</p></div>').join('');return items;
+}
+async function loadPoly(){
+ const queries=['gold price','crude oil price','Federal Reserve interest rate','Bank of Japan interest rate','USD JPY'];
+ const res=await Promise.allSettled(queries.map(q=>json('https://gamma-api.polymarket.com/markets?active=true&closed=false&limit=20&search='+encodeURIComponent(q))));
+ const all=res.filter(x=>x.status==='fulfilled').flatMap(x=>Array.isArray(x.value)?x.value:(x.value.markets||[]));
+ const unique=[...new Map(all.filter(m=>m.question&&m.slug).map(m=>[m.id||m.slug,m])).values()].slice(0,9);
+ if(!unique.length){$('#poly').innerHTML='<div class="item">L’API di Polymarket non è raggiungibile o non espone risultati compatibili da questo browser. Consulta direttamente <a href="https://polymarket.com/search?_q=gold" target="_blank" rel="noopener">ricerca mercati</a>.</div>';return []}
+ $('#poly').innerHTML=unique.map(m=>{let p=m.outcomePrices;try{if(typeof p==='string')p=JSON.parse(p)}catch(e){p=[]}let probs=Array.isArray(p)?p.map(Number).filter(Number.isFinite):[];let prob=probs.length?Math.max(...probs)*100:null;let volume=Number(m.volumeNum??m.volume);return '<div class="item"><strong><a target="_blank" rel="noopener" href="https://polymarket.com/event/'+encodeURIComponent(m.slug)+'">'+esc(m.question)+'</a></strong><small>'+(prob===null?'Probabilità n.d.':'Prob. outcome principale ~'+fmt(prob,1)+'%')+(Number.isFinite(volume)?' · Volume $'+fmt(volume,0):'')+'</small></div>'}).join('');return unique;
+}
+async function refresh(){
+ $('#refresh').disabled=true;$('#refresh').textContent='Aggiornamento…';$('#summary-status').textContent='Consultazione fonti…';
+ const [q,n,p]=await Promise.allSettled([loadQuotes(),loadNews(),loadPoly()]);
+ const nq=q.status==='fulfilled'?q.value:0,nn=n.status==='fulfilled'?n.value:[],np=p.status==='fulfilled'?p.value:[];
+ $('#updated').textContent='Ultimo tentativo: '+new Date().toLocaleString('it-IT');
+ $('#summary-status').textContent='Aggiornamento completato';
+ const positive=(document.querySelectorAll('#quotes .change[style*="green"]').length);
+ const headlines=nn.slice(0,3).map(x=>x.title).filter(Boolean);
+ $('#briefing').innerHTML='<p><strong>Fonti accessibili:</strong> '+nq+'/4 quotazioni; '+nn.length+' notizie filtrate; '+np.length+' mercati Polymarket individuati.</p>'+(headlines.length?'<p><strong>Titoli da verificare:</strong></p><ul>'+headlines.map(h=>'<li>'+esc(h)+'</li>').join('')+'</ul>':'<p>Feed notizie non raggiungibili: usa i link alle fonti dirette qui sotto.</p>')+'<p>Questo è un riepilogo operativo dei dati accessibili, non un modello predittivo. Valuta timestamp, qualità delle fonti, volumi e orizzonte di ciascun evento prima di trarre conclusioni.</p>';
+ $('#refresh').disabled=false;$('#refresh').textContent='↻ Aggiorna dati';
+}
+$('#refresh').addEventListener('click',refresh);refresh();
+</script></body></html>
