@@ -8,6 +8,9 @@ import json
 import os
 import re
 import socket
+import subprocess
+import uuid
+import math
 import threading
 import time
 import urllib.error
@@ -654,6 +657,341 @@ def ai_summary(api_key: str, data: dict):
     return "\n\n".join(pieces)
 
 
+
+# --- Local position ledger and Mac alert agent (Plus500 retail CFD: no credentials) ---
+AGENT_HOME = Path.home() / "Library" / "Application Support" / "MarketPulse"
+AGENT_STORE_PATH = AGENT_HOME / "agent_store.json"
+AGENT_STORE_LOCK = threading.RLock()
+AGENT_STATUS_LOCK = threading.Lock()
+AGENT_STATUS = {
+    "running": False,
+    "last_scan": None,
+    "last_error": None,
+    "last_notification": None,
+    "last_news_alert": None,
+    "source_note": "Prezzi di riferimento pubblici, non feed del conto Plus500",
+}
+AGENT_INTERVAL_SECONDS = 300
+
+HIGH_IMPACT_TERMS = (
+    "emergency rate", "rate decision", "interest rate decision", "federal reserve",
+    "fed chair", "fomc", "bank of japan", "boj", "currency intervention",
+    "intervention", "inflation", "consumer price index", "cpi report", "nonfarm payroll",
+    "payrolls", "unemployment rate", "opec", "production cut", "oil supply",
+    "oil inventories", "crude inventories", "strait of hormuz", "shipping attack",
+    "military strike", "airstrike", "missile", "invasion", "war breaks out",
+    "sanctions", "embargo", "supply disruption", "ceasefire", "geopolitical crisis",
+    "emergency meeting", "surprise hike", "surprise cut", "rate hike", "rate cut",
+)
+NEWS_ASSETS = {
+    "gold": {"gold", "macro"},
+    "wti": {"oil", "macro"},
+    "brent": {"oil", "macro"},
+    "usdjpy": {"usdjpy", "macro"},
+}
+
+
+def _default_agent_store():
+    return {
+        "version": 1,
+        "positions": [],
+        "settings": {
+            "enabled": True,
+            "news_enabled": True,
+            "market_move_pct": 1.0,
+            "interval_seconds": AGENT_INTERVAL_SECONDS,
+        },
+        "state": {
+            "seen_news_ids": [],
+            "position_alerts": {},
+            "market_alert_active": {},
+        },
+    }
+
+
+def load_agent_store():
+    AGENT_HOME.mkdir(parents=True, exist_ok=True)
+    with AGENT_STORE_LOCK:
+        try:
+            raw = json.loads(AGENT_STORE_PATH.read_text(encoding="utf-8"))
+            if not isinstance(raw, dict):
+                raise ValueError("Archivio agente non valido")
+        except FileNotFoundError:
+            raw = _default_agent_store()
+        except Exception:
+            raw = _default_agent_store()
+        defaults = _default_agent_store()
+        raw.setdefault("version", defaults["version"])
+        raw.setdefault("positions", [])
+        raw.setdefault("settings", {})
+        raw.setdefault("state", {})
+        for key, value in defaults["settings"].items():
+            raw["settings"].setdefault(key, value)
+        for key, value in defaults["state"].items():
+            raw["state"].setdefault(key, value)
+        return raw
+
+
+def save_agent_store(store):
+    AGENT_HOME.mkdir(parents=True, exist_ok=True)
+    with AGENT_STORE_LOCK:
+        tmp_path = AGENT_STORE_PATH.with_suffix(".tmp")
+        tmp_path.write_text(json.dumps(store, ensure_ascii=False, indent=2), encoding="utf-8")
+        try:
+            os.chmod(tmp_path, 0o600)
+        except OSError:
+            pass
+        os.replace(tmp_path, AGENT_STORE_PATH)
+        try:
+            os.chmod(AGENT_STORE_PATH, 0o600)
+        except OSError:
+            pass
+
+
+def agent_status_payload():
+    store = load_agent_store()
+    with AGENT_STATUS_LOCK:
+        status = dict(AGENT_STATUS)
+    status.update({
+        "enabled": bool(store["settings"].get("enabled", True)),
+        "news_enabled": bool(store["settings"].get("news_enabled", True)),
+        "position_count": len(store.get("positions") or []),
+        "market_move_pct": float(store["settings"].get("market_move_pct", 1.0)),
+        "interval_seconds": int(store["settings"].get("interval_seconds", AGENT_INTERVAL_SECONDS)),
+        "data_source": "Prezzi pubblici di riferimento (Yahoo Finance); non quotazioni esatte del conto Plus500.",
+        "positions_local_only": True,
+    })
+    return status
+
+
+def _status_update(**changes):
+    with AGENT_STATUS_LOCK:
+        AGENT_STATUS.update(changes)
+
+
+def _applescript_quote(value):
+    return str(value or "").replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ").replace("\r", " ")
+
+
+def send_mac_notification(title, message):
+    """Issue a native macOS notification without shell interpolation."""
+    try:
+        script = 'display notification "' + _applescript_quote(message) + '" with title "' + _applescript_quote(title) + '" subtitle "MarketPulse"'
+        result = subprocess.run(
+            ["/usr/bin/osascript", "-e", script],
+            capture_output=True,
+            text=True,
+            timeout=8,
+            check=False,
+        )
+        if result.returncode == 0:
+            _status_update(last_notification=now_utc())
+            return True
+        error = (result.stderr or result.stdout or "Notifica macOS non disponibile").strip()
+        _status_update(last_error=("Notifica macOS: " + error[:250]))
+        return False
+    except Exception as exc:
+        _status_update(last_error=("Notifica macOS non disponibile: " + str(exc)[:220]))
+        return False
+
+
+def _finite_positive(value, field_name, optional=False):
+    if optional and (value is None or str(value).strip() == ""):
+        return None
+    try:
+        number = float(value)
+    except Exception:
+        raise ValueError(field_name + ": inserisci un numero valido.")
+    if not math.isfinite(number) or number <= 0:
+        raise ValueError(field_name + ": deve essere un numero maggiore di zero.")
+    return number
+
+
+def normalise_position(payload, old_position=None):
+    asset_key = str(payload.get("asset_key") or "")
+    if asset_key not in ASSETS:
+        raise ValueError("Seleziona uno strumento supportato.")
+    direction = str(payload.get("direction") or "").lower()
+    if direction not in ("long", "short"):
+        raise ValueError("La direzione deve essere Long o Short.")
+    tracking_price = _finite_positive(payload.get("tracking_price"), "Prezzo riferimento")
+    try:
+        warning_pct = float(payload.get("adverse_alert_pct", 1.0))
+    except Exception:
+        raise ValueError("La soglia di allarme deve essere numerica.")
+    if not math.isfinite(warning_pct) or warning_pct < 0.1 or warning_pct > 25:
+        raise ValueError("La soglia deve essere compresa tra 0,1% e 25%.")
+    entry_price = _finite_positive(payload.get("entry_price"), "Prezzo ingresso Plus500", optional=True)
+    label = clean_html(str(payload.get("label") or ""))[:100]
+    now = now_utc()
+    return {
+        "id": str((old_position or {}).get("id") or uuid.uuid4().hex),
+        "label": label or ASSETS[asset_key]["name"],
+        "asset_key": asset_key,
+        "asset_name": ASSETS[asset_key]["name"],
+        "direction": direction,
+        "tracking_price": tracking_price,
+        "entry_price": entry_price,
+        "adverse_alert_pct": round(warning_pct, 3),
+        "enabled": True,
+        "created_at": (old_position or {}).get("created_at") or now,
+        "updated_at": now,
+    }
+
+
+def _relative_move_pct(current, baseline):
+    try:
+        current = float(current)
+        baseline = float(baseline)
+        if baseline <= 0 or not math.isfinite(current) or not math.isfinite(baseline):
+            return None
+        return (current / baseline - 1.0) * 100.0
+    except Exception:
+        return None
+
+
+def _news_matches_positions(item, positions):
+    category = str(item.get("category") or "").lower()
+    active_assets = {str(p.get("asset_key")) for p in positions if p.get("enabled", True)}
+    if not active_assets:
+        return False
+    affected = set()
+    for asset_key in active_assets:
+        affected.update(NEWS_ASSETS.get(asset_key, {"macro"}))
+    return category in affected or category == "macro"
+
+
+def _news_is_high_impact(item):
+    text = (str(item.get("title") or "") + " " + str(item.get("summary") or "")).lower()
+    return any(term in text for term in HIGH_IMPACT_TERMS)
+
+
+def scan_agent_once(data):
+    store = load_agent_store()
+    settings = store["settings"]
+    state = store["state"]
+    positions = store.get("positions") or []
+    if not settings.get("enabled", True):
+        _status_update(last_scan=now_utc(), last_error=None)
+        return
+    assets = data.get("assets") or {}
+    position_alerts = state.setdefault("position_alerts", {})
+    market_active = state.setdefault("market_alert_active", {})
+    market_threshold = float(settings.get("market_move_pct", 1.0))
+    notifications_sent = 0
+
+    for position in positions:
+        if not position.get("enabled", True):
+            continue
+        key = str(position.get("asset_key") or "")
+        quote = assets.get(key) or {}
+        current = quote.get("price")
+        baseline = position.get("tracking_price")
+        if current is None or baseline is None:
+            continue
+        move = _relative_move_pct(current, baseline)
+        if move is None:
+            continue
+        directional_move = move if position.get("direction") == "long" else -move
+        adverse_threshold = float(position.get("adverse_alert_pct", 1.0))
+        flags = position_alerts.setdefault(str(position.get("id")), {})
+        is_adverse = directional_move <= -adverse_threshold
+        if is_adverse and not flags.get("adverse", False):
+            send_mac_notification(
+                "Attenzione posizione: " + str(position.get("label") or ASSETS[key]["name"]),
+                ASSETS[key]["name"] + " si è mosso di circa " + format(directional_move, ".2f") +
+                "% nella direzione avversa rispetto al riferimento registrato. Prezzo pubblico indicativo, non quotazione Plus500."
+            )
+            flags["adverse"] = True
+            notifications_sent += 1
+        elif not is_adverse:
+            flags["adverse"] = False
+
+    # Movement alerts use changes from the public reference feed, not Plus500's bid/ask.
+    for key, quote in assets.items():
+        change = quote.get("change_pct")
+        if change is None:
+            continue
+        try:
+            change = float(change)
+        except Exception:
+            continue
+        active = bool(market_active.get(key, False))
+        if abs(change) >= market_threshold and not active:
+            send_mac_notification(
+                "Movimento di mercato: " + str(ASSETS.get(key, {}).get("name", key)),
+                "Variazione indicativa " + format(change, ".2f") + "% rispetto alla chiusura di riferimento. Verifica il prezzo live e lo spread direttamente su Plus500."
+            )
+            market_active[key] = True
+            notifications_sent += 1
+        elif abs(change) < max(0.05, market_threshold * 0.75):
+            market_active[key] = False
+
+    # On the first scan after installing the agent, establish a news baseline instead of
+    # alarming on old headlines. Only subsequent high-impact titles may notify.
+    news = data.get("news") or []
+    all_news_ids = []
+    for item in news:
+        news_id = str(item.get("link") or item.get("title") or "")
+        if news_id:
+            all_news_ids.append(news_id)
+    seen = set(str(x) for x in (state.get("seen_news_ids") or []))
+    first_news_scan = not bool(seen)
+    fresh_alerts = []
+    if settings.get("news_enabled", True) and not first_news_scan:
+        now_ts = time.time()
+        for item in news:
+            news_id = str(item.get("link") or item.get("title") or "")
+            if not news_id or news_id in seen:
+                continue
+            published_ts = parse_rss_date(item.get("published"))
+            if published_ts and now_ts - published_ts > 6 * 3600:
+                continue
+            if _news_matches_positions(item, positions) and _news_is_high_impact(item):
+                fresh_alerts.append(item)
+    state["seen_news_ids"] = (all_news_ids + list(seen))[:300]
+    if fresh_alerts:
+        for item in fresh_alerts[:2]:
+            source = str(item.get("source") or "Fonte notizie")
+            title = str(item.get("title") or "Nuova notizia")
+            category = str(item.get("category") or "mercati").upper()
+            send_mac_notification(
+                "Notizia ad alto impatto · " + category,
+                title[:220] + " · Fonte: " + source
+            )
+            notifications_sent += 1
+        _status_update(last_news_alert=now_utc())
+
+    save_agent_store(store)
+    _status_update(
+        last_scan=now_utc(),
+        last_error=None,
+        last_scan_notifications=notifications_sent,
+        last_scan_position_count=len(positions),
+        last_scan_quotes_ok=sum(1 for q in assets.values() if q.get("price") is not None),
+    )
+
+
+def agent_monitor_loop():
+    _status_update(running=True)
+    # Give the local dashboard a moment to start and populate the first news baseline.
+    time.sleep(20)
+    while True:
+        try:
+            store = load_agent_store()
+            if not store["settings"].get("enabled", True):
+                _status_update(last_scan=now_utc(), last_error=None)
+                time.sleep(15)
+                continue
+            dashboard = build_dashboard(force=True)
+            scan_agent_once(dashboard)
+            interval = int(load_agent_store()["settings"].get("interval_seconds", AGENT_INTERVAL_SECONDS))
+            time.sleep(max(120, min(interval, 900)))
+        except Exception as exc:
+            _status_update(last_error=str(exc)[:300], last_scan=now_utc())
+            time.sleep(60)
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "MarketPulseLocal/1.0"
 
@@ -685,6 +1023,12 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_bytes(200, json.dumps(data, ensure_ascii=False).encode("utf-8"))
             except Exception as exc:
                 self.send_bytes(500, json.dumps({"error": str(exc)}).encode("utf-8"))
+        elif parsed.path == "/api/positions":
+            store = load_agent_store()
+            payload = {"positions": store.get("positions") or [], "settings": store.get("settings") or {}, "agent": agent_status_payload()}
+            self.send_bytes(200, json.dumps(payload, ensure_ascii=False).encode("utf-8"))
+        elif parsed.path == "/api/agent/status":
+            self.send_bytes(200, json.dumps(agent_status_payload(), ensure_ascii=False).encode("utf-8"))
         elif parsed.path == "/api/health":
             self.send_bytes(200, json.dumps({"ok": True, "time": now_utc()}).encode("utf-8"))
         else:
@@ -702,7 +1046,53 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             self.send_bytes(400, json.dumps({"error": "JSON non valido."}).encode("utf-8"))
             return
-        if parsed.path == "/api/ai-summary":
+        if parsed.path == "/api/positions/upsert":
+            try:
+                store = load_agent_store()
+                requested_id = str(payload.get("id") or "")
+                old_position = next((p for p in store["positions"] if str(p.get("id")) == requested_id), None)
+                position = normalise_position(payload, old_position=old_position)
+                if old_position:
+                    store["positions"] = [position if str(p.get("id")) == requested_id else p for p in store["positions"]]
+                else:
+                    store["positions"].append(position)
+                store.setdefault("state", {}).setdefault("position_alerts", {}).pop(position["id"], None)
+                save_agent_store(store)
+                self.send_bytes(200, json.dumps({"ok": True, "position": position, "positions": store["positions"]}, ensure_ascii=False).encode("utf-8"))
+            except Exception as exc:
+                self.send_bytes(400, json.dumps({"error": str(exc)[:500]}, ensure_ascii=False).encode("utf-8"))
+        elif parsed.path == "/api/positions/delete":
+            try:
+                position_id = str(payload.get("id") or "")
+                store = load_agent_store()
+                before = len(store["positions"])
+                store["positions"] = [p for p in store["positions"] if str(p.get("id")) != position_id]
+                store.setdefault("state", {}).setdefault("position_alerts", {}).pop(position_id, None)
+                save_agent_store(store)
+                self.send_bytes(200, json.dumps({"ok": True, "removed": before != len(store["positions"]), "positions": store["positions"]}, ensure_ascii=False).encode("utf-8"))
+            except Exception as exc:
+                self.send_bytes(400, json.dumps({"error": str(exc)[:500]}, ensure_ascii=False).encode("utf-8"))
+        elif parsed.path == "/api/agent/settings":
+            try:
+                store = load_agent_store()
+                if "enabled" in payload:
+                    store["settings"]["enabled"] = bool(payload.get("enabled"))
+                if "news_enabled" in payload:
+                    store["settings"]["news_enabled"] = bool(payload.get("news_enabled"))
+                if "market_move_pct" in payload:
+                    threshold = float(payload.get("market_move_pct"))
+                    if not math.isfinite(threshold) or threshold < 0.25 or threshold > 10:
+                        raise ValueError("La soglia movimento deve essere tra 0,25% e 10%.")
+                    store["settings"]["market_move_pct"] = round(threshold, 2)
+                store["settings"]["interval_seconds"] = AGENT_INTERVAL_SECONDS
+                save_agent_store(store)
+                self.send_bytes(200, json.dumps({"ok": True, "settings": store["settings"], "agent": agent_status_payload()}, ensure_ascii=False).encode("utf-8"))
+            except Exception as exc:
+                self.send_bytes(400, json.dumps({"error": str(exc)[:500]}, ensure_ascii=False).encode("utf-8"))
+        elif parsed.path == "/api/agent/test":
+            ok = send_mac_notification("MarketPulse · Notifica di prova", "Se leggi questo avviso, le notifiche macOS sono operative.")
+            self.send_bytes(200 if ok else 503, json.dumps({"ok": ok, "agent": agent_status_payload()}, ensure_ascii=False).encode("utf-8"))
+        elif parsed.path == "/api/ai-summary":
             try:
                 key = str(payload.get("api_key", ""))[:500]
                 data = payload.get("data") or build_dashboard()
@@ -717,6 +1107,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
     httpd.daemon_threads = True
+    threading.Thread(target=agent_monitor_loop, name="MarketPulseAgent", daemon=True).start()
     print(f"MarketPulse attivo su http://{HOST}:{PORT}")
     try:
         httpd.serve_forever(poll_interval=0.5)
