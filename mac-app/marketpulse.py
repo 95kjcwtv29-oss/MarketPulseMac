@@ -105,6 +105,117 @@ def clean_html(value: str) -> str:
     return value.strip()
 
 
+
+# Traduzione automatica di titoli e sommari; non richiede una chiave API.
+# Il servizio web pubblico non garantisce disponibilita: in caso di errore,
+# MarketPulse conserva il testo originale.
+_TRANSLATION_CACHE = {}
+_TRANSLATION_LOCK = threading.Lock()
+
+
+def _parse_translation_response(payload, expected_count):
+    """Parse common response shapes from public Google Translate web endpoints."""
+    if isinstance(payload, dict):
+        sentences = payload.get("sentences")
+        if isinstance(sentences, list):
+            translated = "".join(str(s.get("trans") or "") for s in sentences if isinstance(s, dict))
+            if translated and expected_count == 1:
+                return [translated]
+        translations = (payload.get("data") or {}).get("translations")
+        if isinstance(translations, list) and len(translations) == expected_count:
+            return [html.unescape(str(x.get("translatedText") or "")) for x in translations]
+        return []
+    if not isinstance(payload, list):
+        return []
+    if len(payload) == expected_count and all(isinstance(row, list) for row in payload):
+        out = []
+        for row in payload:
+            if row and isinstance(row[0], str):
+                out.append(html.unescape(row[0]))
+            elif row and isinstance(row[0], list):
+                out.append(html.unescape("".join(str(seg[0]) for seg in row if isinstance(seg, list) and seg and isinstance(seg[0], str))))
+            else:
+                out.append("")
+        if any(out):
+            return out
+    if expected_count == 1 and payload and isinstance(payload[0], list):
+        translated = "".join(str(seg[0]) for seg in payload[0] if isinstance(seg, list) and seg and isinstance(seg[0], str))
+        if translated:
+            return [html.unescape(translated)]
+    return []
+
+
+def _translate_batch(texts):
+    if not texts:
+        return {}
+    endpoints = [
+        ("https://translate.googleapis.com/translate_a/t", "gtx"),
+        ("https://clients5.google.com/translate_a/t", "dict-chrome-ex"),
+    ]
+    for endpoint, client in endpoints:
+        try:
+            params = [("client", client), ("sl", "auto"), ("tl", "it")]
+            params.extend(("q", text[:700]) for text in texts)
+            url = endpoint + "?" + urllib.parse.urlencode(params)
+            req = urllib.request.Request(url, headers={
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/125 Safari/537.36",
+                "Accept": "application/json, text/plain, */*",
+            })
+            with urllib.request.urlopen(req, timeout=10) as response:
+                payload = json.loads(response.read(2_000_000).decode("utf-8", errors="replace"))
+            translated = _parse_translation_response(payload, len(texts))
+            if len(translated) == len(texts) and all(t.strip() for t in translated):
+                return {original: result.strip() for original, result in zip(texts, translated)}
+        except Exception:
+            continue
+    return {}
+
+
+def translate_news_to_italian(items, max_items=24):
+    """Add Italian display fields to the newest articles and keep originals."""
+    for item in items:
+        item["title_original"] = item.get("title", "")
+        item["summary_original"] = item.get("summary", "")
+        item["title_it"] = item.get("title", "")
+        item["summary_it"] = item.get("summary", "")
+        item["translation_status"] = "originale"
+    candidates = []
+    for item in items[:max_items]:
+        for field in ("title", "summary"):
+            value = str(item.get(field) or "").strip()
+            if value and value not in candidates:
+                candidates.append(value)
+    translated_map = {}
+    with _TRANSLATION_LOCK:
+        for value in candidates:
+            if value in _TRANSLATION_CACHE:
+                translated_map[value] = _TRANSLATION_CACHE[value]
+    missing = [value for value in candidates if value not in translated_map]
+    batches = [missing[i:i + 8] for i in range(0, len(missing), 8)]
+    if batches:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+            futures = [pool.submit(_translate_batch, batch) for batch in batches]
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    translated_map.update(future.result())
+                except Exception:
+                    pass
+        with _TRANSLATION_LOCK:
+            _TRANSLATION_CACHE.update(translated_map)
+    for item in items[:max_items]:
+        title = str(item.get("title") or "").strip()
+        summary = str(item.get("summary") or "").strip()
+        translated_title = translated_map.get(title, title)
+        translated_summary = translated_map.get(summary, summary)
+        item["title_it"] = translated_title
+        item["summary_it"] = translated_summary
+        if translated_title != title or translated_summary != summary:
+            item["translation_status"] = "tradotto"
+        elif title in translated_map or summary in translated_map:
+            item["translation_status"] = "traduzione verificata"
+    return items
+
+
 def fmt_dt(value):
     if not value:
         return None
@@ -468,6 +579,7 @@ def build_dashboard(force=False):
     news_data.sort(key=lambda x: [k for k, _ in NEWS_QUERIES].index(x["category"]) if x["category"] in [k for k, _ in NEWS_QUERIES] else 99)
     news_items = [item for feed in news_data for item in feed.get("items", [])]
     news_items.sort(key=lambda x: parse_rss_date(x.get("published")), reverse=True)
+    news_items = translate_news_to_italian(news_items, max_items=24)
     community_threads = [item for feed in community_data for item in feed.get("items", [])]
     community_threads.sort(key=lambda x: parse_rss_date(x.get("published")), reverse=True)
     community_comments = fetch_reddit_comments(community_data)
