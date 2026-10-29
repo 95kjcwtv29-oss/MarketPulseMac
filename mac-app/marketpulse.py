@@ -711,6 +711,10 @@ def _default_agent_store():
 
 def load_agent_store():
     AGENT_HOME.mkdir(parents=True, exist_ok=True)
+    try:
+        os.chmod(AGENT_HOME, 0o700)
+    except OSError:
+        pass
     with AGENT_STORE_LOCK:
         try:
             raw = json.loads(AGENT_STORE_PATH.read_text(encoding="utf-8"))
@@ -734,6 +738,10 @@ def load_agent_store():
 
 def save_agent_store(store):
     AGENT_HOME.mkdir(parents=True, exist_ok=True)
+    try:
+        os.chmod(AGENT_HOME, 0o700)
+    except OSError:
+        pass
     with AGENT_STORE_LOCK:
         tmp_path = AGENT_STORE_PATH.with_suffix(".tmp")
         tmp_path.write_text(json.dumps(store, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -867,6 +875,7 @@ def _news_is_high_impact(item):
 
 
 def scan_agent_once(data):
+    _status_update(last_error=None)
     store = load_agent_store()
     settings = store["settings"]
     state = store["state"]
@@ -965,7 +974,6 @@ def scan_agent_once(data):
     save_agent_store(store)
     _status_update(
         last_scan=now_utc(),
-        last_error=None,
         last_scan_notifications=notifications_sent,
         last_scan_position_count=len(positions),
         last_scan_quotes_ok=sum(1 for q in assets.values() if q.get("price") is not None),
