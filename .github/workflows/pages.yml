@@ -25,6 +25,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Configura GitHub Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - name: Prepara il sito
         uses: actions/upload-pages-artifact@v3
         with:
