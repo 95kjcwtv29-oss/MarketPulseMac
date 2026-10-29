@@ -1,0 +1,9 @@
+MarketPulse — fonti e limiti (versione 1.0)
+
+1. Prezzi: Yahoo Finance Chart API; GC=F (future oro COMEX), CL=F (future WTI), BZ=F (future Brent), USDJPY=X (cambio indicativo). Quotazioni potenzialmente ritardate.
+2. News: Google News RSS. Le notizie sono indicizzate da query tematiche; controllare sempre l'articolo originale.
+3. Polymarket: Gamma API pubblica. La ricerca per parole chiave non garantisce di trovare ogni mercato attivo. Gli eventi indiretti vengono etichettati come proxy macro.
+4. Comunità: feed RSS di ricerca pubblica Reddit. Non garantisce commenti individuali, tutti i post o disponibilità continua; le pagine Investing.com sono linkate e non sottoposte a scraping.
+5. Tono/sentiment: classificazione lessicale rudimentale, soggetta a falsi positivi e non calibrata per il linguaggio finanziario.
+6. Briefing AI opzionale: invio della dashboard all'API OpenAI solo se l'utente inserisce una chiave. L'uso dell'API può essere a pagamento e soggetto alle condizioni del fornitore.
+7. Il prodotto non compie operazioni finanziarie e non costituisce consulenza d'investimento.
