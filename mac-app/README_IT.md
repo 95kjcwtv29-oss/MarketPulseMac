@@ -25,7 +25,7 @@ Se macOS blocca anche i file `.command`, fai clic destro su `Avvia-MarketPulse.c
 - **Oro:** future COMEX `GC=F` (USD/oncia troy), non oro spot fisico.
 - **Petrolio WTI e Brent:** future `CL=F` e `BZ=F` (USD/barile).
 - **USD/JPY:** cambio indicativo da Yahoo Finance.
-- **Notizie internazionali:** feed RSS di Google News per oro, petrolio, USD/JPY e quadro macro.
+- **Notizie internazionali:** feed RSS di Google News per oro, petrolio, USD/JPY e quadro macro. I titoli e i sommari più recenti vengono tradotti automaticamente in italiano tramite un endpoint web pubblico di Google Translate, senza chiave API. Il titolo originale resta visibile sotto a quello tradotto. Essendo un servizio pubblico non ufficiale, può essere temporaneamente indisponibile; in tal caso l'app mostra il testo originale.
 - **Polymarket:** ricerca di mercati attivi tramite l'API pubblica Gamma. I match diretti sono separati da quelli macro indiretti, come decisioni Fed/BoJ.
 - **Commenti e discussioni pubbliche:** ricerca RSS su Reddit e tentativo di recupero dei commenti con più voti nelle discussioni pertinenti; se Reddit limita le richieste, la dashboard mostra i thread come ripiego. I risultati dipendono dalle limitazioni del feed.
 - **Investing.com:** pulsanti per aprire direttamente le pagine dei commenti di oro, petrolio e USD/JPY. Il sito non offre una API pubblica ufficiale, perciò questa prima versione non copia automaticamente i suoi commenti.
@@ -35,6 +35,7 @@ Se macOS blocca anche i file `.command`, fai clic destro su `Avvia-MarketPulse.c
 ## Fonti e limiti importanti
 
 - **Prezzi:** Yahoo Finance (`query1.finance.yahoo.com`), con possibili ritardi e indisponibilità. Le variazioni confrontano il prezzo restituito con la chiusura precedente disponibile.
+- **Traduzione notizie:** endpoint web pubblico di Google Translate, senza chiave API e senza garanzia di disponibilità. Il testo originale viene conservato.
 - **Notizie:** Google News RSS; il titolo e il link conducono all'editore, quando disponibile.
 - **Mercati predittivi:** Gamma API di Polymarket (`gamma-api.polymarket.com`). Le probabilità riflettono prezzi di mercato e non probabilità oggettive certe. L'assenza di un match viene mostrata esplicitamente.
 - **Community:** Reddit RSS può limitare richieste o non fornire estratti; un post non equivale a un commento verificato e il campione non è rappresentativo.
