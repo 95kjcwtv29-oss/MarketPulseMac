@@ -2,13 +2,21 @@
 
 **Prima versione funzionante, per macOS 11 o successivo.** L'interfaccia è una dashboard locale che si apre nel browser predefinito. Non richiede `pip`, librerie Python esterne, un database o un account per vedere i dati gratuiti.
 
-## Avvio
+## Installazione e avvio
 
-1. Scarica ed estrai `MarketPulseMac.zip` in una cartella del Mac, per esempio Applicazioni o Documenti.
-2. Apri `MarketPulse.app` con un doppio clic. Al primo avvio macOS potrebbe bloccare l'app perché non è firmata/notarizzata: fai clic destro sull'app, scegli **Apri** e conferma.
-3. Si aprirà il browser all'indirizzo `http://127.0.0.1:8765`. Il server rimane locale al Mac e non viene esposto in rete.
-4. Per avviare dalla cartella senza usare il bundle, fai doppio clic su `Avvia-MarketPulse.command`.
-5. Per fermare il server, fai doppio clic su `Ferma-MarketPulse.command`.
+Per installare direttamente dal repository GitHub senza usare allegati di ChatGPT, segui la sezione **“Installa MarketPulse.app sul Mac”** nel README principale. L'installatore crea `~/Applications/MarketPulse.app` e copia al suo interno la dashboard e il server Python.
+
+Se hai già estratto i sorgenti nella cartella `mac-app`, puoi avviare l'installatore così:
+
+```bash
+/bin/bash install-macos.sh
+```
+
+L'app apre il browser all'indirizzo `http://127.0.0.1:8765`. Il server è in ascolto soltanto sul Mac e non viene esposto in rete. Per fermarlo:
+
+```bash
+/bin/bash "$HOME/Applications/Ferma-MarketPulse.command"
+```
 
 Se macOS blocca anche i file `.command`, fai clic destro su `Avvia-MarketPulse.command` e scegli **Apri**. È necessario avere `python3` disponibile nel Terminale. Tutto il codice usa esclusivamente la libreria standard di Python.
 
