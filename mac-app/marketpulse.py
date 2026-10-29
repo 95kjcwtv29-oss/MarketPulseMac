@@ -113,62 +113,40 @@ _TRANSLATION_CACHE = {}
 _TRANSLATION_LOCK = threading.Lock()
 
 
-def _parse_translation_response(payload, expected_count):
-    """Parse common response shapes from public Google Translate web endpoints."""
-    if isinstance(payload, dict):
-        sentences = payload.get("sentences")
-        if isinstance(sentences, list):
-            translated = "".join(str(s.get("trans") or "") for s in sentences if isinstance(s, dict))
-            if translated and expected_count == 1:
-                return [translated]
-        translations = (payload.get("data") or {}).get("translations")
-        if isinstance(translations, list) and len(translations) == expected_count:
-            return [html.unescape(str(x.get("translatedText") or "")) for x in translations]
-        return []
-    if not isinstance(payload, list):
-        return []
-    if len(payload) == expected_count and all(isinstance(row, list) for row in payload):
-        out = []
-        for row in payload:
-            if row and isinstance(row[0], str):
-                out.append(html.unescape(row[0]))
-            elif row and isinstance(row[0], list):
-                out.append(html.unescape("".join(str(seg[0]) for seg in row if isinstance(seg, list) and seg and isinstance(seg[0], str))))
-            else:
-                out.append("")
-        if any(out):
-            return out
-    if expected_count == 1 and payload and isinstance(payload[0], list):
-        translated = "".join(str(seg[0]) for seg in payload[0] if isinstance(seg, list) and seg and isinstance(seg[0], str))
-        if translated:
-            return [html.unescape(translated)]
-    return []
-
-
-def _translate_batch(texts):
-    if not texts:
-        return {}
-    endpoints = [
-        ("https://translate.googleapis.com/translate_a/t", "gtx"),
-        ("https://clients5.google.com/translate_a/t", "dict-chrome-ex"),
-    ]
-    for endpoint, client in endpoints:
+def _translate_one(value):
+    """Translate a single string through the public Google Translate web endpoint."""
+    for endpoint in (
+        "https://translate.googleapis.com/translate_a/single",
+        "https://clients5.google.com/translate_a/single",
+    ):
         try:
-            params = [("client", client), ("sl", "auto"), ("tl", "it")]
-            params.extend(("q", text[:700]) for text in texts)
-            url = endpoint + "?" + urllib.parse.urlencode(params)
-            req = urllib.request.Request(url, headers={
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/125 Safari/537.36",
-                "Accept": "application/json, text/plain, */*",
-            })
-            with urllib.request.urlopen(req, timeout=10) as response:
-                payload = json.loads(response.read(2_000_000).decode("utf-8", errors="replace"))
-            translated = _parse_translation_response(payload, len(texts))
-            if len(translated) == len(texts) and all(t.strip() for t in translated):
-                return {original: result.strip() for original, result in zip(texts, translated)}
+            params = urllib.parse.urlencode([
+                ("client", "gtx" if "translate.googleapis.com" in endpoint else "dict-chrome-ex"),
+                ("sl", "auto"),
+                ("tl", "it"),
+                ("dt", "t"),
+                ("q", value[:700]),
+            ])
+            req = urllib.request.Request(
+                endpoint + "?" + params,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/125 Safari/537.36",
+                    "Accept": "application/json, text/plain, */*",
+                },
+            )
+            with urllib.request.urlopen(req, timeout=8) as response:
+                payload = json.loads(response.read(1_000_000).decode("utf-8", errors="replace"))
+            if isinstance(payload, list) and payload and isinstance(payload[0], list):
+                translated = "".join(
+                    str(segment[0])
+                    for segment in payload[0]
+                    if isinstance(segment, list) and segment and isinstance(segment[0], str)
+                ).strip()
+                if translated:
+                    return value, html.unescape(translated)
         except Exception:
             continue
-    return {}
+    return value, None
 
 
 def translate_news_to_italian(items, max_items=24):
@@ -179,29 +157,36 @@ def translate_news_to_italian(items, max_items=24):
         item["title_it"] = item.get("title", "")
         item["summary_it"] = item.get("summary", "")
         item["translation_status"] = "originale"
+
     candidates = []
     for item in items[:max_items]:
         for field in ("title", "summary"):
             value = str(item.get(field) or "").strip()
             if value and value not in candidates:
                 candidates.append(value)
+    if not candidates:
+        return items
+
     translated_map = {}
     with _TRANSLATION_LOCK:
         for value in candidates:
             if value in _TRANSLATION_CACHE:
                 translated_map[value] = _TRANSLATION_CACHE[value]
+
     missing = [value for value in candidates if value not in translated_map]
-    batches = [missing[i:i + 8] for i in range(0, len(missing), 8)]
-    if batches:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
-            futures = [pool.submit(_translate_batch, batch) for batch in batches]
+    if missing:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+            futures = [pool.submit(_translate_one, value) for value in missing]
             for future in concurrent.futures.as_completed(futures):
                 try:
-                    translated_map.update(future.result())
+                    original, translated = future.result()
+                    if translated:
+                        translated_map[original] = translated
                 except Exception:
                     pass
         with _TRANSLATION_LOCK:
             _TRANSLATION_CACHE.update(translated_map)
+
     for item in items[:max_items]:
         title = str(item.get("title") or "").strip()
         summary = str(item.get("summary") or "").strip()
@@ -214,7 +199,6 @@ def translate_news_to_italian(items, max_items=24):
         elif title in translated_map or summary in translated_map:
             item["translation_status"] = "traduzione verificata"
     return items
-
 
 def fmt_dt(value):
     if not value:
