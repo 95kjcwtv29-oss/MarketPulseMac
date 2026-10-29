@@ -40,6 +40,16 @@
 @media(max-width:760px){.agent-layout{grid-template-columns:1fr}.agent-panel{padding:15px}.agent-settings{grid-template-columns:1fr 1fr}}
 @media(max-width:480px){.agent-settings{grid-template-columns:1fr}.agent-field.full{grid-column:auto}}
 
+
+.agent-insight-card{border:1px solid #2a383e;background:#0d1418;border-radius:10px;padding:13px;margin-top:9px}
+.agent-insight-card:first-child{margin-top:0}
+.agent-insight-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.agent-insight-top strong{font-size:12px}
+.agent-risk-tag{font-size:9px;text-transform:uppercase;letter-spacing:.04em;border:1px solid #334047;border-radius:5px;padding:4px 6px;color:var(--muted)}
+.agent-risk-tag.warn{color:var(--amber);border-color:#615033;background:#2a2419}
+.agent-risk-tag.good{color:var(--teal);border-color:#315149;background:#14231f}
+.agent-insight-card p{color:var(--soft);font-size:11px;line-height:1.7;margin:8px 0 0}
+
 </style>
 </head>
 <body>
@@ -101,6 +111,8 @@
     </div>
     <div class="section-label">Posizioni registrate su questo Mac</div>
     <div id="agentPositions"><div class="agent-empty">Caricamento delle posizioni locali…</div></div>
+    <div class="section-label">Scenari da valutare e controlli di rischio</div>
+    <div id="agentInsights"><div class="agent-empty">Caricamento dei controlli per le posizioni registrate…</div></div>
     <div class="agent-statline"><span>Memorizzazione: solo su questo Mac</span><span>Nessuna password Plus500 salvata</span><span>Nessun ordine automatico</span></div>
   </section>
 
@@ -171,6 +183,63 @@ function updateReferencePrice(force=false){
   const input=$('posTrackingPrice');
   if(input && quote?.price!=null && (force || !input.value)) input.value=String(quote.price);
 }
+
+function renderAgentInsights(positions){
+  const box=$('agentInsights');
+  if(!box)return;
+  if(!positions||!positions.length){
+    box.innerHTML='<div class="agent-empty">Registra una posizione per vedere il movimento rispetto al riferimento, la vicinanza alla soglia di allarme e i controlli di rischio pertinenti.</div>';
+    return;
+  }
+  const marketThreshold=Number(AGENT_DATA?.settings?.market_move_pct??1);
+  const cards=positions.map(p=>{
+    const meta=ASSET_META[p.asset_key]||{label:p.asset_name||p.asset_key};
+    const q=DASH?.assets?.[p.asset_key]||{};
+    const current=q.price==null?null:Number(q.price);
+    const baseline=Number(p.tracking_price);
+    const raw=current==null||!Number.isFinite(baseline)||baseline<=0?null:(current/baseline-1)*100;
+    const directed=raw==null?null:(p.direction==='short'?-raw:raw);
+    const adverse=directed!=null?Math.max(0,-directed):null;
+    const threshold=Number(p.adverse_alert_pct||1);
+    let status='Riferimento non disponibile', tag='warn', advice='Controlla la connessione e riprova; non considerare l’assenza del dato come assenza di rischio.';
+    if(directed!=null&&adverse>=threshold){
+      status='Soglia avversa superata';tag='warn';
+      advice='Verifica subito la quotazione Bid/Ask effettiva in Plus500, il margine e il piano di perdita massima che avevi stabilito. Questo allarme usa un riferimento esterno: non è un ordine né una raccomandazione automatica di chiusura.';
+    }else if(directed!=null&&adverse>=threshold*0.7){
+      status='Vicino alla soglia di allarme';tag='warn';
+      advice='La soglia impostata è relativamente vicina. Ricontrolla sul broker il prezzo eseguibile, lo spread e il rischio residuo prima di decidere; evita di modificare il piano solo per reazione al rumore di breve periodo.';
+    }else if(directed!=null&&directed>0){
+      status='Movimento favorevole sul riferimento';tag='good';
+      advice='Il riferimento si è mosso nella direzione registrata da quando hai avviato il monitoraggio. Valuta il piano di uscita e il rischio residuo già definiti; non inseguire il prezzo e non interpretare il movimento come garanzia di continuazione.';
+    }else if(directed!=null){
+      status='Movimento contrario sotto soglia';tag='';
+      advice='La soglia personale non risulta superata sul riferimento corrente. Verifica comunque il prezzo eseguibile del broker e che la dimensione della posizione sia compatibile con la perdita massima che puoi sostenere.';
+    }
+    const dayMove=q.change_pct==null?null:Number(q.change_pct);
+    let marketNote='';
+    if(dayMove!=null&&Math.abs(dayMove)>=marketThreshold){
+      marketNote=' Il riferimento mostra anche una variazione giornaliera di '+(dayMove>0?'+':'')+num(dayMove,2)+'%, superiore alla soglia generale impostata ('+num(marketThreshold,2)+'%).';
+    }
+    return '<div class="agent-insight-card"><div class="agent-insight-top"><strong>'+esc(p.label||meta.label)+' · '+esc(meta.label)+' · '+(p.direction==='long'?'LONG':'SHORT')+'</strong><span class="agent-risk-tag '+tag+'">'+esc(status)+'</span></div><p>'+esc(advice+marketNote)+'</p></div>';
+  });
+  const items=DASH?.news||[];
+  const highTerms=['emergency','federal reserve','fed ','fomc','bank of japan','boj','intervention','inflation','cpi','payroll','opec','production cut','oil supply','inventories','missile','attack','sanctions','war','strike','geopolitical','supply disruption','ceasefire'];
+  const important=items.filter(n=>{
+    const text=((n.title_original||n.title||'')+' '+(n.summary_original||n.summary||'')).toLowerCase();
+    const hi=highTerms.some(term=>text.includes(term));
+    if(!hi)return false;
+    const category=String(n.category||'').toLowerCase();
+    if(category==='macro')return true;
+    return positions.some(p=>p.asset_key==='gold'&&category==='gold'||(p.asset_key==='wti'||p.asset_key==='brent')&&category==='oil'||p.asset_key==='usdjpy'&&category==='usdjpy');
+  }).slice(0,2);
+  if(important.length){
+    cards.push('<div class="agent-insight-card"><div class="agent-insight-top"><strong>Notizie potenzialmente rilevanti</strong><span class="agent-risk-tag warn">Da verificare</span></div>'+important.map(n=>'<p><a href="'+esc(n.link)+'" target="_blank" rel="noopener">'+esc(n.title_it||n.title)+'</a> · '+esc(categoryLabel(n.category))+' · '+esc(n.source||'Fonte esterna')+'</p>').join('')+'<p>Leggi l’articolo originale e verifica data, conferme indipendenti e reazione del mercato prima di attribuirgli un effetto sulla posizione.</p></div>');
+  }else{
+    cards.push('<div class="agent-insight-card"><div class="agent-insight-top"><strong>Controllo notizie</strong><span class="agent-risk-tag">Nessun titolo ad alto impatto rilevato</span></div><p>Nei feed ricevuti non è stato individuato un titolo recente che corrisponda alle parole chiave d’allarme. La classificazione è euristica: non garantisce che non esistano notizie importanti.</p></div>');
+  }
+  box.innerHTML=cards.join('');
+}
+
 function renderAgent(){
   const d=AGENT_DATA||{};
   const settings=d.settings||{};
@@ -198,6 +267,7 @@ function renderAgent(){
   if(!box)return;
   if(!positions.length){
     box.innerHTML='<div class="agent-empty">Nessuna posizione registrata. Inserisci una posizione aperta nel modulo sopra. L’agente non accede direttamente al conto CFD Plus500.</div>';
+    renderAgentInsights([]);
     updateReferencePrice();
     return;
   }
@@ -214,6 +284,7 @@ function renderAgent(){
     return '<div class="agent-position"><div><h4>'+esc(p.label||meta.label)+' · '+esc(meta.label)+' · '+(p.direction==='long'?'LONG':'SHORT')+'</h4><p>Riferimento iniziale '+esc(num(baseline,p.asset_key==='usdjpy'?4:2))+' · ora '+(current==null?'N/D':esc(num(current,p.asset_key==='usdjpy'?4:2)))+' · movimento nella direzione posizione <strong class="agent-move '+movementCls+'">'+esc(movement)+'</strong><br>Avviso se movimento contrario ≥ '+esc(num(p.adverse_alert_pct,1))+'%'+(p.entry_price?' · Ingresso annotato Plus500 '+esc(num(p.entry_price,2)):'')+'</p></div><button class="btn delete-position" type="button" data-delete-position="'+esc(p.id)+'">Rimuovi</button></div>';
   }).join('');
   box.querySelectorAll('[data-delete-position]').forEach(btn=>btn.addEventListener('click',()=>deleteAgentPosition(btn.dataset.deletePosition)));
+  renderAgentInsights(positions);
   updateReferencePrice();
 }
 async function loadAgent(){
