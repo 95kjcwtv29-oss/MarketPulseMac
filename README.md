@@ -21,3 +21,24 @@ La pagina mostra un avviso quando una fonte non è raggiungibile. I dati possono
 ## Uso locale
 
 Puoi aprire `index.html` in un browser, ma le API cross-origin possono essere limitate. La versione locale con backend Python può essere aggiunta separatamente; GitHub Pages serve solo pagine statiche.
+
+
+## Avviare la versione locale sul Mac (senza download da ChatGPT)
+
+Apri **Terminale** sul Mac, incolla il comando seguente e premi Invio. Scarica i sorgenti direttamente dal repository GitHub e avvia il server locale; poi apre il browser su `http://127.0.0.1:8765`.
+
+```bash
+mkdir -p "$HOME/Downloads" && /usr/bin/curl -fL --retry 2 "https://github.com/95kjcwtv29-oss/MarketPulseMac/archive/refs/heads/main.zip" -o "$HOME/Downloads/MarketPulseMac.zip" && /usr/bin/ditto -x -k "$HOME/Downloads/MarketPulseMac.zip" "$HOME/Downloads" && cd "$HOME/Downloads/MarketPulseMac-main/mac-app" && /bin/bash Avvia-MarketPulse.command
+```
+
+Per fermare il server, in Terminale esegui:
+
+```bash
+/bin/bash "$HOME/Downloads/MarketPulseMac-main/mac-app/Ferma-MarketPulse.command"
+```
+
+Il programma usa Python 3 e la libreria standard. Se il comando segnala che Python 3 non è disponibile, va installato prima di avviare l'app. La prima apertura di eventuali file scaricati può mostrare gli avvisi di sicurezza macOS.
+
+## Anteprima rapida della dashboard web
+
+La dashboard statica può essere visualizzata senza download tramite il servizio esterno [HTML Preview](https://html-preview.github.io/?url=https://github.com/95kjcwtv29-oss/MarketPulseMac/blob/main/index.html). È una preview di terze parti e non sostituisce la versione locale completa.
