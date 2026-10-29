@@ -41,6 +41,16 @@ Se macOS blocca anche i file `.command`, fai clic destro su `Avvia-MarketPulse.c
 - **Community:** Reddit RSS può limitare richieste o non fornire estratti; un post non equivale a un commento verificato e il campione non è rappresentativo.
 - **Sintesi:** non vengono eseguiti ordini e non è presente una funzione di trading. Questa dashboard è informativa, non consulenza finanziaria.
 
+## Aggiornare l'app e la traduzione notizie
+
+Per aggiornare i file installati dal repository senza copiare lunghi script nel Terminale, esegui:
+
+```bash
+/usr/bin/curl -fLsS --retry 2 "https://raw.githubusercontent.com/95kjcwtv29-oss/MarketPulseMac/main/mac-app/aggiorna-macos.sh" -o "$HOME/Downloads/aggiorna-marketpulse.sh" && /bin/bash "$HOME/Downloads/aggiorna-marketpulse.sh"
+```
+
+Lo script usa Bash, aggiorna il server e la pagina e riavvia MarketPulse. Le notizie vengono tradotte automaticamente quando il servizio pubblico di traduzione è raggiungibile.
+
 ## Aggiornamento e risoluzione problemi
 
 Il pulsante **Aggiorna ora** forza una nuova lettura delle fonti. I dati vengono messi in cache per circa 2 minuti e mezzo tra un aggiornamento e l'altro. Se i feed online non rispondono, alcune sezioni possono essere vuote senza che l'app sia guasta.
