@@ -96,4 +96,4 @@ chmod 755 "$STOP_SCRIPT"
 echo
 echo "Installazione completata: $APP_DIR"
 echo "Avvio di MarketPulse…"
-/usr/bin/open "$APP"
+/usr/bin/open "$APP_DIR"
