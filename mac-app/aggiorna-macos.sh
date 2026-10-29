@@ -29,6 +29,10 @@ if [ ! -d "$RES" ]; then
   exit 1
 fi
 
+echo "Scarico l'ultima versione dei file da GitHub…"
+/usr/bin/curl -fLsS --retry 2 "$BASE/marketpulse.py" -o "$TMP/marketpulse.py"
+/usr/bin/curl -fLsS --retry 2 "$BASE/index.html" -o "$TMP/index.html"
+
 # Stop the old local server before replacing its files.
 PID_FILE="$HOME/Library/Application Support/MarketPulse/server.pid"
 if [ -f "$PID_FILE" ]; then
@@ -43,9 +47,6 @@ if [ -f "$PID_FILE" ]; then
   /bin/rm -f "$PID_FILE"
 fi
 
-echo "Scarico l'ultima versione dei file da GitHub…"
-/usr/bin/curl -fLsS --retry 2 "$BASE/marketpulse.py" -o "$TMP/marketpulse.py"
-/usr/bin/curl -fLsS --retry 2 "$BASE/index.html" -o "$TMP/index.html"
 /bin/cp "$TMP/marketpulse.py" "$RES/marketpulse.py"
 /bin/cp "$TMP/index.html" "$RES/index.html"
 
